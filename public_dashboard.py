@@ -18,8 +18,6 @@ st.title("🐕 Stray Dog Public Dashboard")
 # Go to Streamlit Cloud → Settings → Secrets → Add "GOOGLE_CREDS"
 try:
     creds_dict = json.loads(st.secrets["GOOGLE_CREDS"])
-except KeyError:
-    st.error("Google credentials not found in Streamlit secrets. Please add GOOGLE_CREDS.")
     st.stop()
 
 scope = ["https://spreadsheets.google.com/feeds",
@@ -149,3 +147,4 @@ with st.expander("📄 Show full log"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
