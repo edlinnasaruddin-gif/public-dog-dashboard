@@ -120,8 +120,8 @@ st.line_chart(chart_df)
 # ----------------------------
 # Optional: Table view (only Dog Count > 1)
 # ----------------------------
-with st.expander("📄 Show dogs detected (count > 1)"):
-    df_filtered = df[df['Dog Count'] > 1]
+with st.expander("📄 Show dogs detected (count >= 1)"):
+    df_filtered = df[df['Dog Count'] >= 1]
     if df_filtered.empty:
         st.info("No records with Dog Count > 1.")
     else:
@@ -131,3 +131,4 @@ with st.expander("📄 Show dogs detected (count > 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>", unsafe_allow_html=True)
+
