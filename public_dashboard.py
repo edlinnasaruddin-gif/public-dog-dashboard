@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
 
 # ============================
 # Page setup
@@ -20,27 +19,21 @@ st.markdown(
 )
 
 # ============================
-# Auto-refresh every 30 seconds
-# ============================
-st_autorefresh = st.experimental_rerun  # Streamlit built-in simple rerun
-# Optional: use streamlit_autorefresh package for more control
-
-# ============================
-# Google Sheets connection (Streamlit Cloud SAFE)
+# Google Sheets connection
 # ============================
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
 ]
 
-# Load credentials from Streamlit Secrets
+# Load credentials from Streamlit secrets
 creds = ServiceAccountCredentials.from_json_keyfile_dict(
     st.secrets["gcp_service_account"], scope
 )
 
 client = gspread.authorize(creds)
 
-# 🔴 CHANGE THIS to your exact Google Sheet name
+# Change this to your exact Google Sheet name
 SHEET_NAME = "Dog_Counts"
 sheet = client.open(SHEET_NAME).sheet1
 
@@ -90,7 +83,49 @@ col3.metric("Last Detection Time", latest_time.strftime("%Y-%m-%d %H:%M:%S"))
 # Alert Card
 # ============================
 if latest_count > 2:
-    st.markdown(
-        f"""
-        <di
+    st.markdown(f"""<div style="
+        padding: 20px;
+        background-color: #ffe6e6;
+        color: #cc0000;
+        border-radius: 12px;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;">
+        ⚠️ ALERT! {latest_count} dogs detected<br>
+        {latest_time.strftime("%Y-%m-%d %H:%M:%S")}
+    </div>""", unsafe_allow_html=True)
+else:
+    st.markdown("""<div style="
+        padding: 15px;
+        background-color: #e6ffe6;
+        color: #006600;
+        border-radius: 12px;
+        font-size: 20px;
+        text-align: center;
+        margin-bottom: 20px;">
+        ✅ Dogs count normal
+    </div>""", unsafe_allow_html=True)
+
+# ============================
+# Line Chart
+# ============================
+st.subheader("📈 Dog Counts Over Time")
+chart_df = df[["Timestamp", "Dog Count"]].set_index("Timestamp")
+st.line_chart(chart_df)
+
+# ============================
+# Full Log
+# ============================
+with st.expander("📄 Show full detection log"):
+    st.dataframe(df, use_container_width=True)
+
+# ============================
+# Footer
+# ============================
+st.markdown(
+    "<hr>"
+    "<p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets | Urban Monitoring Project</p>",
+    unsafe_allow_html=True
+)
 
