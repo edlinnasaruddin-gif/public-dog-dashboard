@@ -16,13 +16,14 @@ st.title("🐕 Stray Dog Public Dashboard")
 # ----------------------------
 # Add your Google service account JSON in Streamlit secrets as: GOOGLE_CREDS
 # Go to Streamlit Cloud → Settings → Secrets → Add "GOOGLE_CREDS"
+import json
+
 try:
     creds_dict = json.loads(st.secrets["GOOGLE_CREDS"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+except KeyError:
+    st.error("Google credentials not found in Streamlit secrets. Please add GOOGLE_CREDS.")
     st.stop()
-
-scope = ["https://spreadsheets.google.com/feeds",
-         "https://www.googleapis.com/auth/drive"]
-
 try:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
@@ -147,4 +148,5 @@ with st.expander("📄 Show full log"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
