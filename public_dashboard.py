@@ -118,10 +118,14 @@ chart_df = df[['Timestamp', 'Dog Count']].set_index('Timestamp')
 st.line_chart(chart_df)
 
 # ----------------------------
-# Optional: Table view
+# Optional: Table view (only Dog Count > 1)
 # ----------------------------
-with st.expander("📄 Show full log"):
-    st.dataframe(df)
+with st.expander("📄 Show dogs detected (count > 1)"):
+    df_filtered = df[df['Dog Count'] > 1]
+    if df_filtered.empty:
+        st.info("No records with Dog Count > 1.")
+    else:
+        st.dataframe(df_filtered)
 
 # ----------------------------
 # Footer
