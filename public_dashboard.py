@@ -4,6 +4,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import json
+import os
 
 # ----------------------------
 # Page setup
@@ -12,26 +13,48 @@ st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
 
 # ----------------------------
-# Google Sheets setup using Streamlit secrets
+# Google Sheets setup
 # ----------------------------
-# Add your Google service account JSON in Streamlit secrets as: GOOGLE_CREDS
-# Go to Streamlit Cloud → Settings → Secrets → Add "GOOGLE_CREDS"
-import json
-
-try:
-    creds_dict = json.loads(st.secrets["GOOGLE_CREDS"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-except KeyError:
-    st.error("Google credentials not found in Streamlit secrets. Please add GOOGLE_CREDS.")
-    st.stop()
-try:
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-except Exception as e:
-    st.error(f"Failed to authorize Google Sheets: {e}")
-    st.stop()
-
 SHEET_NAME = "Dog_Counts"
+scope = ["https://spreadsheets.google.com/feeds",
+         "https://www.googleapis.com/auth/drive"]
+
+def load_google_creds():
+    """
+    Loads Google credentials either from local JSON or Streamlit secrets.
+    Returns: ServiceAccountCredentials object
+    """
+    # 1️⃣ Try Streamlit secrets first
+    if "GOOGLE_CREDS" in st.secrets:
+        try:
+            raw_creds = st.secrets["GOOGLE_CREDS"].strip()
+            creds_dict = json.loads(raw_creds)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            return creds
+        except json.JSONDecodeError:
+            st.error("Failed to decode JSON from Streamlit secrets. Check formatting of GOOGLE_CREDS.")
+            st.stop()
+        except Exception as e:
+            st.error(f"Failed to load credentials from Streamlit secrets: {e}")
+            st.stop()
+    
+    # 2️⃣ Fallback: Try local JSON file
+    local_path = r"C:\yolo_dashboard\creds.json"  # Change this if needed
+    if os.path.exists(local_path):
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_name(local_path, scope)
+            return creds
+        except Exception as e:
+            st.error(f"Failed to load credentials from local JSON file: {e}")
+            st.stop()
+    
+    # 3️⃣ If neither exists, stop
+    st.error("Google credentials not found. Add GOOGLE_CREDS to Streamlit secrets or place creds.json locally.")
+    st.stop()
+
+# Authorize
+creds = load_google_creds()
+client = gspread.authorize(creds)
 
 try:
     sheet = client.open(SHEET_NAME).sheet1
@@ -148,5 +171,3 @@ with st.expander("📄 Show full log"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
-
-
