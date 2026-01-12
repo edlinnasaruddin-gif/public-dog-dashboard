@@ -4,7 +4,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ============================
-# Page setup
+# Page Setup
 # ============================
 st.set_page_config(
     page_title="Public Dog Dashboard",
@@ -19,18 +19,16 @@ st.markdown(
 )
 
 # ============================
-# Google Sheets connection
+# Google Sheets Connection
 # ============================
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
 ]
 
-# Load credentials from Streamlit secrets
-creds = ServiceAccountCredentials.from_json_keyfile_dict(
-    st.secrets["gcp_service_account"], scope
-)
-
+# Load credentials from Streamlit secrets (TOML)
+creds_dict = st.secrets["gcp_service_account"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Change this to your exact Google Sheet name
@@ -38,7 +36,7 @@ SHEET_NAME = "Dog_Counts"
 sheet = client.open(SHEET_NAME).sheet1
 
 # ============================
-# Fetch data from Google Sheets
+# Fetch Data
 # ============================
 data = sheet.get_all_records()
 
@@ -47,10 +45,10 @@ if not data:
     st.stop()
 
 df = pd.DataFrame(data)
-df.columns = [c.strip() for c in df.columns]
+df.columns = [c.strip() for c in df.columns]  # clean column names
 
 # ============================
-# Validate required columns
+# Validate Columns
 # ============================
 required_cols = ["Timestamp", "Dog Count"]
 for col in required_cols:
@@ -58,12 +56,11 @@ for col in required_cols:
         st.error(f"Column '{col}' not found in Google Sheet. Please check headers.")
         st.stop()
 
-# Convert timestamp and sort
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df = df.sort_values("Timestamp")
 
 # ============================
-# Latest statistics
+# Latest Statistics
 # ============================
 latest_row = df.iloc[-1]
 latest_count = latest_row["Dog Count"]
@@ -115,9 +112,9 @@ chart_df = df[["Timestamp", "Dog Count"]].set_index("Timestamp")
 st.line_chart(chart_df)
 
 # ============================
-# Full Log
+# Full Log Table
 # ============================
-with st.expander("📄 Show full detection log"):
+with st.expander("📄 Show Full Detection Log"):
     st.dataframe(df, use_container_width=True)
 
 # ============================
@@ -128,4 +125,3 @@ st.markdown(
     "<p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets | Urban Monitoring Project</p>",
     unsafe_allow_html=True
 )
-
