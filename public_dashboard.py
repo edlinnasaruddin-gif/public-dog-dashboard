@@ -1,10 +1,6 @@
 import streamlit as st
 import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
-import json
-import os
 
 # ----------------------------
 # Page setup
@@ -13,72 +9,31 @@ st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
 
 # ----------------------------
-# Google Sheets setup
+# Public Google Sheet CSV URL
 # ----------------------------
-SHEET_NAME = "Dog_Counts"
-scope = ["https://spreadsheets.google.com/feeds",
-         "https://www.googleapis.com/auth/drive"]
-
-def load_google_creds():
-    """
-    Load Google credentials from Streamlit secrets or local JSON.
-    Returns: ServiceAccountCredentials
-    """
-    # 1️⃣ Try Streamlit secrets first
-    if "GOOGLE_CREDS" in st.secrets:
-        try:
-            raw_creds = st.secrets["GOOGLE_CREDS"].strip()
-            creds_dict = json.loads(raw_creds)
-            # Fix newlines in private_key
-            if "private_key" in creds_dict:
-                creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-            return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        except json.JSONDecodeError:
-            st.error("Failed to decode JSON from Streamlit secrets. Check formatting of GOOGLE_CREDS.")
-            st.stop()
-        except Exception as e:
-            st.error(f"Failed to load credentials from secrets: {e}")
-            st.stop()
-    
-    # 2️⃣ Fallback: local JSON file
-    local_path = r"C:\yolo_dashboard\creds.json"  # adjust if needed
-    if os.path.exists(local_path):
-        try:
-            return ServiceAccountCredentials.from_json_keyfile_name(local_path, scope)
-        except Exception as e:
-            st.error(f"Failed to load credentials from local JSON file: {e}")
-            st.stop()
-
-    # 3️⃣ If neither exists, stop
-    st.error("Google credentials not found. Add GOOGLE_CREDS to Streamlit secrets or place creds.json locally.")
-    st.stop()
-
-# Authorize Google Sheets
-creds = load_google_creds()
-client = gspread.authorize(creds)
-
-try:
-    sheet = client.open(SHEET_NAME).sheet1
-except Exception as e:
-    st.error(f"Failed to open Google Sheet '{SHEET_NAME}': {e}")
-    st.stop()
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pub?output=csv"
 
 # ----------------------------
 # Fetch data
 # ----------------------------
-data = sheet.get_all_records()
-if not data:
+try:
+    df = pd.read_csv(CSV_URL)
+except Exception as e:
+    st.error(f"Failed to load data from public CSV: {e}")
+    st.stop()
+
+if df.empty:
     st.warning("No dog detection data available yet.")
     st.stop()
 
-df = pd.DataFrame(data)
+# Clean column names
 df.columns = [c.strip() for c in df.columns]
 
 # Check required columns
 required_cols = ['Timestamp', 'Dog Count']
 for col in required_cols:
     if col not in df.columns:
-        st.error(f"Column '{col}' not found in Google Sheet. Please check headers.")
+        st.error(f"Column '{col}' not found in the CSV. Please check headers.")
         st.stop()
 
 # Convert Timestamp to datetime
@@ -171,5 +126,4 @@ with st.expander("📄 Show full log"):
 # ----------------------------
 # Footer
 # ----------------------------
-st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
-
+st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>", unsafe_allow_html=True)
