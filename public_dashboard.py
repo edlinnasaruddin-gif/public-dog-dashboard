@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -8,6 +7,11 @@ from datetime import datetime
 # ----------------------------
 st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
+
+# ----------------------------
+# Location info
+# ----------------------------
+st.subheader("📍 Location: Taman Bunga Raya, Kajang")
 
 # ----------------------------
 # Public Google Sheet CSV URL
@@ -59,22 +63,22 @@ col1.metric("🟢 Total Dogs Counted", total_dogs)
 col2.metric("🔵 Current Dog Count", latest_count)
 col3.metric("🔴 Max Dogs Detected", max_count)
 
-# Environment status logic
+# Environment status logic (font color = black)
 if latest_count == 1:
     env_status = "Safe"
-    color = "#ccffcc"
+    bg_color = "#ccffcc"
 elif latest_count == 3:
     env_status = "Critical"
-    color = "#ff6666"
+    bg_color = "#ff6666"
 elif latest_count > 3:
     env_status = "Danger"
-    color = "#ff0000"
+    bg_color = "#ff0000"
 else:
     env_status = "Caution"
-    color = "#ffff66"
+    bg_color = "#ffff66"
 
 col4.markdown(f"""
-    <div style="padding:15px; background-color:{color}; border-radius:10px; text-align:center;">
+    <div style="padding:15px; background-color:{bg_color}; border-radius:10px; text-align:center; color:black;">
         🌿 Environment Status<br>
         <b>{env_status}</b>
     </div>
