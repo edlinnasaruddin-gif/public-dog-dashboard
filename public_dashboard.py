@@ -2,224 +2,129 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# ============================
-# Try importing OpenCV and YOLO
-# ============================
+st.set_page_config(page_title="Stray Dog Public Dashboard", layout="wide")
+st.title("🐕 Stray Dog Public Dashboard")
+
+# ----------------------------
+# Public Google Sheet CSV URL
+# ----------------------------
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pub?output=csv"
+
+# ----------------------------
+# Fetch data
+# ----------------------------
 try:
-    import cv2
-    from ultralytics import YOLO
-    HAS_OPENCV = True
-except ImportError:
-    HAS_OPENCV = False
-    st.warning("OpenCV or YOLO not installed. Live detection is disabled.")
+    df = pd.read_csv(CSV_URL)
+except Exception as e:
+    st.error(f"Failed to load data from public CSV: {e}")
+    st.stop()
 
-# ============================
-# PAGE SETUP
-# ============================
-st.set_page_config(page_title="Stray Dog Dashboard", layout="wide")
-st.title("🐕 Stray Dog Detection & Public Dashboard")
+if df.empty:
+    st.warning("No dog detection data available yet.")
+    st.stop()
 
-# ============================
-# GOOGLE SHEETS SETUP
-# ============================
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+# Clean column names
+df.columns = [c.strip() for c in df.columns]
 
-GOOGLE_SHEET_CREDS = r"C:\yolo_dashboard\creds.json"  # adjust your path
-SHEET_NAME = "Dog_Counts"
-
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive",
-]
-
-creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_SHEET_CREDS, scope)
-client = gspread.authorize(creds)
-sheet = client.open(SHEET_NAME).sheet1
-
-def save_to_sheets(timestamp, count, source):
-    try:
-        sheet.append_row([timestamp, count, source])
-    except Exception as e:
-        st.error(f"Google Sheets error: {e}")
-
-# ============================
-# LAYOUT
-# ============================
-left_col, right_col = st.columns([2, 1])
-
-# ============================
-# LEFT COLUMN: LIVE DETECTION (if OpenCV available)
-# ============================
-with left_col:
-    st.header("🎥 Live Detection")
-    if HAS_OPENCV:
-        # Load YOLO
-        model = YOLO("best.pt")
-        st.write("Model classes:", model.names)
-
-        # Video source
-        source = st.radio("Select video source:", ["Live Webcam", "Upload CCTV Video"])
-        cap = None
-        if source == "Upload CCTV Video":
-            video_file = st.file_uploader("Upload CCTV video", type=["mp4", "avi", "mov"])
-            if video_file:
-                import tempfile
-                tfile = tempfile.NamedTemporaryFile(delete=False)
-                tfile.write(video_file.read())
-                cap = cv2.VideoCapture(tfile.name)
-        else:
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                st.error("Cannot access webcam")
-                cap = None
-
-        if cap:
-            # Placeholders
-            frame_window = st.empty()
-            col1, col2, col3 = st.columns(3)
-            current_metric = col1.metric("Current Dog Count", 0)
-            max_metric = col2.metric("Max Dogs Detected", 0)
-            time_metric = col3.metric("Last Detection Time", "N/A")
-            chart_placeholder = st.empty()
-            stop_btn = st.button("Stop Detection")
-
-            st.session_state.setdefault("max_dogs", 0)
-            st.session_state.setdefault("last_saved", -1)
-            dog_log = []
-
-            frame_skip = 2
-            frame_id = 0
-
-            while cap.isOpened():
-                if stop_btn:
-                    break
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                frame_id += 1
-                if frame_id % frame_skip != 0:
-                    continue
-
-                result = model(frame, conf=0.4)[0]
-                dog_boxes = [box for box in result.boxes if "dog" in model.names[int(box.cls[0])].lower()]
-                current_dog_count = len(dog_boxes)
-
-                if current_dog_count > st.session_state.max_dogs:
-                    st.session_state.max_dogs = current_dog_count
-
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                dog_log.append((timestamp, current_dog_count))
-
-                if current_dog_count != st.session_state.last_saved:
-                    save_to_sheets(timestamp, current_dog_count, source)
-                    st.session_state.last_saved = current_dog_count
-
-                annotated = result.plot()
-                frame_window.image(annotated, channels="BGR")
-
-                current_metric.metric("Current Dog Count", current_dog_count)
-                max_metric.metric("Max Dogs Detected", st.session_state.max_dogs)
-                time_metric.metric("Last Detection Time", timestamp)
-
-                df_chart = pd.DataFrame(dog_log, columns=["Time", "Dog Count"]).set_index("Time")
-                chart_placeholder.line_chart(df_chart)
-
-            cap.release()
-            st.success("Detection stopped")
-    else:
-        st.info("Live detection disabled. Install OpenCV and YOLO to enable it.")
-
-# ============================
-# RIGHT COLUMN: PUBLIC DASHBOARD
-# ============================
-with right_col:
-    st.header("📊 Public Dashboard")
-
-    # Use Google Sheet CSV
-    CSV_URL = f"https://docs.google.com/spreadsheets/d/{sheet.spreadsheet.id}/gviz/tq?tqx=out:csv&sheet={sheet.title}"
-
-    try:
-        df = pd.read_csv(CSV_URL)
-    except Exception as e:
-        st.error(f"Failed to load public data: {e}")
+# Check required columns
+required_cols = ['Timestamp', 'Dog Count']
+for col in required_cols:
+    if col not in df.columns:
+        st.error(f"Column '{col}' not found in the CSV. Please check headers.")
         st.stop()
 
-    if df.empty:
-        st.warning("No dog detection data available yet.")
-        st.stop()
+# Convert Timestamp to datetime
+df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+df = df.sort_values('Timestamp')
 
-    df.columns = [c.strip() for c in df.columns]
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-    df = df.sort_values('Timestamp')
+# ----------------------------
+# Stats calculations
+# ----------------------------
+latest_row = df.iloc[-1]
+latest_count = latest_row['Dog Count']
+latest_time = latest_row['Timestamp']
+max_count = df['Dog Count'].max()
+total_dogs = df['Dog Count'].sum()
 
-    latest_row = df.iloc[-1]
-    latest_count = latest_row['Dog Count']
-    latest_time = latest_row['Timestamp']
-    max_count = df['Dog Count'].max()
-    total_dogs = df['Dog Count'].sum()
+# ----------------------------
+# Metrics / Cards
+# ----------------------------
+col1, col2, col3, col4 = st.columns(4)
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🟢 Total Dogs Counted", total_dogs)
-    col2.metric("🔵 Current Dog Count", latest_count)
-    col3.metric("🔴 Max Dogs Detected", max_count)
+col1.metric("🟢 Total Dogs Counted", total_dogs)
+col2.metric("🔵 Current Dog Count", latest_count)
+col3.metric("🔴 Max Dogs Detected", max_count)
 
-    # Environment status
-    if latest_count == 1:
-        env_status = "Safe"; color = "#ccffcc"
-    elif latest_count == 3:
-        env_status = "Critical"; color = "#ff6666"
-    elif latest_count > 3:
-        env_status = "Danger"; color = "#ff0000"
-    else:
-        env_status = "Caution"; color = "#ffff66"
+# Environment status logic
+if latest_count == 1:
+    env_status = "Safe"
+    color = "#ccffcc"
+elif latest_count == 3:
+    env_status = "Critical"
+    color = "#ff6666"
+elif latest_count > 3:
+    env_status = "Danger"
+    color = "#ff0000"
+else:
+    env_status = "Caution"
+    color = "#ffff66"
 
-    col4.markdown(f"""
-        <div style="padding:15px; background-color:{color}; border-radius:10px; text-align:center;">
-            🌿 Environment Status<br>
-            <b>{env_status}</b>
+col4.markdown(f"""
+    <div style="padding:15px; background-color:{color}; border-radius:10px; text-align:center;">
+        🌿 Environment Status<br>
+        <b>{env_status}</b>
+    </div>
+""", unsafe_allow_html=True)
+
+# ----------------------------
+# Alert Detector Card
+# ----------------------------
+if latest_count >= 1:
+    st.markdown(f"""
+        <div style="
+            padding: 20px;
+            background-color: #ffcccc;
+            color: #b30000;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;">
+            ⚠️ Dog Detected – {latest_count} dog(s) at {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown(f"""
+        <div style="
+            padding: 15px;
+            background-color: #ccffcc;
+            color: #006600;
+            border-radius: 10px;
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 20px;">
+            ✅ No dogs detected
         </div>
     """, unsafe_allow_html=True)
 
-    # Alert card
-    if latest_count >= 1:
-        st.markdown(f"""
-            <div style="
-                padding: 20px;
-                background-color: #ffcccc;
-                color: #b30000;
-                border-radius: 10px;
-                font-size: 20px;
-                font-weight: bold;
-                text-align: center;
-                margin-bottom: 20px;">
-                ⚠️ Dog Detected – {latest_count} dog(s) at {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
-            </div>
-        """, unsafe_allow_html=True)
+# ----------------------------
+# Line chart: Dog counts over time
+# ----------------------------
+st.subheader("📈 Dog Counts Over Time")
+chart_df = df[['Timestamp', 'Dog Count']].set_index('Timestamp')
+st.line_chart(chart_df)
+
+# ----------------------------
+# Optional: Table view (only Dog Count > 1)
+# ----------------------------
+with st.expander("📄 Show dogs detected (count >= 1)"):
+    df_filtered = df[df['Dog Count'] >= 1]
+    if df_filtered.empty:
+        st.info("No records with Dog Count > 1.")
     else:
-        st.markdown(f"""
-            <div style="
-                padding: 15px;
-                background-color: #ccffcc;
-                color: #006600;
-                border-radius: 10px;
-                font-size: 20px;
-                text-align: center;
-                margin-bottom: 20px;">
-                ✅ No dogs detected
-            </div>
-        """, unsafe_allow_html=True)
+        st.dataframe(df_filtered)
 
-    st.subheader("📈 Dog Counts Over Time")
-    chart_df = df[['Timestamp', 'Dog Count']].set_index('Timestamp')
-    st.line_chart(chart_df)
-
-    with st.expander("📄 Show dogs detected (count >= 1)"):
-        df_filtered = df[df['Dog Count'] >= 1]
-        if df_filtered.empty:
-            st.info("No records with Dog Count > 1.")
-        else:
-            st.dataframe(df_filtered)
-
-    st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>", unsafe_allow_html=True)
-
+# ----------------------------
+# Footer
+# ----------------------------
+st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Public Google Sheets CSV</p>", unsafe_allow_html=True)
