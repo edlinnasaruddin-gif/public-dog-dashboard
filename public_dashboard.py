@@ -65,8 +65,8 @@ col3.metric("🔴 Max Dogs Detected", max_count)
 
 # Environment status logic (font color = black)
 if latest_count == 1:
-    env_status = "Safe"
-    bg_color = "#ccffcc"
+    env_status = "Caution"
+    bg_color = "#ffff66"
 elif latest_count == 3:
     env_status = "Critical"
     bg_color = "#ff6666"
@@ -74,8 +74,8 @@ elif latest_count > 3:
     env_status = "Danger"
     bg_color = "#ff0000"
 else:
-    env_status = "Caution"
-    bg_color = "#ffff66"
+    env_status = "Safe"
+    bg_color = "#ccffcc"
 
 col4.markdown(f"""
     <div style="padding:15px; background-color:{bg_color}; border-radius:10px; text-align:center; color:black;">
