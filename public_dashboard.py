@@ -82,7 +82,7 @@ if latest_count == 1:
     env_status, bg_color = "Caution", "#ffff66"
 elif latest_count == 2:
     env_status, bg_color = "Critical", "#ff9999"
-elif latest_count > 3:
+elif latest_count >= 3:
     env_status, bg_color = "Danger", "#ff3333"
 else:
     env_status, bg_color = "Safe", "#ccffcc"
@@ -148,6 +148,7 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
 
