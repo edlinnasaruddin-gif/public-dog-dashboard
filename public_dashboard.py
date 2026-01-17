@@ -41,7 +41,7 @@ gc = gspread.authorize(credentials)
 
 # Open the sheet by name or URL
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit?gid=0#gid=0"
-sh = gc.open_by_url(https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit?gid=0)
+sh = gc.open_by_url("https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit?gid=0")
 worksheet = sh.sheet1  # or by name: sh.worksheet("Sheet1")
 
 # Fetch all data
@@ -146,5 +146,6 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
