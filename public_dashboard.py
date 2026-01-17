@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
 
 # ----------------------------
 # Page setup
 # ----------------------------
 st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
+st_autorefresh(interval=15 * 1000, key="dashboard_refresh")
 st.title("🐕 Stray Dog Public Dashboard")
 
 # ----------------------------
@@ -136,3 +138,4 @@ with st.expander("📄 Show dogs detected (count >= 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>", unsafe_allow_html=True)
+
