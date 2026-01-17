@@ -33,12 +33,13 @@ st.subheader("📍 Location: Taman Bunga Raya, Kajang")
 # ----------------------------
 # Public Google Sheet CSV URL
 # ----------------------------
-CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pub?output=csv"
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pubhtml"
 
 # ----------------------------
 # Fetch data (with cache-busting)
 # ----------------------------
 try:
+    # Add timestamp to URL to prevent Google caching old CSV
     df = pd.read_csv(f"{CSV_URL}&t={int(time.time())}")
 except Exception as e:
     st.error(f"Failed to load data from public CSV: {e}")
