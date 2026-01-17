@@ -1,28 +1,23 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-
-# ----------------------------
-# Page setup
-# ----------------------------
-st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
-st.title("🐕 Stray Dog Public Dashboard")
+from streamlit_autorefresh import st_autorefresh
 
 # ----------------------------
 # Auto-refresh every 15 seconds
 # ----------------------------
-if "last_refresh" not in st.session_state:
-    st.session_state["last_refresh"] = time.time()
-
-if time.time() - st.session_state["last_refresh"] >= 15:
-    st.session_state["last_refresh"] = time.time()
-    st.experimental_rerun()
+st_autorefresh(interval=15_000, key="refresh")
 
 # ----------------------------
-# Track previous dog count
+# Page setup
+# ----------------------------
+st.set_page_config(page_title="🐕 Stray Dog Public Dashboard", layout="wide")
+st.title("🐕 Stray Dog Public Dashboard")
+
+# ----------------------------
+# Track previous dog count in session state
 # ----------------------------
 if "prev_dog_count" not in st.session_state:
     st.session_state["prev_dog_count"] = 0
@@ -31,10 +26,11 @@ if "prev_dog_count" not in st.session_state:
 # Google Sheets setup
 # ----------------------------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = st.secrets["gcp_service_account"]
+creds = st.secrets["gcp_service_account"]  # JSON service account stored in Streamlit Secrets
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds, scope)
 gc = gspread.authorize(credentials)
 
+# Replace with your live Google Sheet URL
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit"
 sh = gc.open_by_url(SHEET_URL)
 worksheet = sh.sheet1
@@ -49,7 +45,16 @@ if df.empty:
     st.warning("No dog detection data yet.")
     st.stop()
 
+# ----------------------------
+# Clean and process data
+# ----------------------------
 df.columns = [c.strip() for c in df.columns]
+required_cols = ["Timestamp", "Dog Count"]
+for col in required_cols:
+    if col not in df.columns:
+        st.error(f"Column '{col}' missing in sheet")
+        st.stop()
+
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df = df.sort_values("Timestamp")
 
@@ -85,16 +90,14 @@ else:
 col4.markdown(f"""
 <div style="padding:15px;background-color:{bg_color};border-radius:10px;text-align:center;color:black;">
 🌿 Environment Status<br><b>{env_status}</b>
-</div>
-""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
-# Last updated = current time
+# Last Updated = current time
 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 col5.markdown(f"""
 <div style="padding:12px;background-color:#f2f2f2;border-radius:10px;text-align:center;font-size:14px;color:#333;">
 🕒 Last Updated<br><b>{current_time}</b>
-</div>
-""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
 # ----------------------------
 # Alert
@@ -111,13 +114,13 @@ else:
     st.success("✅ No dogs detected")
 
 # ----------------------------
-# Line chart
+# Line chart: Dog counts over time
 # ----------------------------
 st.subheader("📈 Dog Counts Over Time")
 st.line_chart(df.set_index("Timestamp")["Dog Count"])
 
 # ----------------------------
-# Table view
+# Table view (Dog Count ≥ 1)
 # ----------------------------
 with st.expander("📄 Show dogs detected (count ≥ 1)"):
     df_filtered = df[df["Dog Count"] >= 1]
