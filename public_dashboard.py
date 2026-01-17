@@ -125,17 +125,28 @@ st.subheader("📈 Dog Counts Over Time")
 st.line_chart(df.set_index("Timestamp")["Dog Count"])
 
 # ----------------------------
-# Table view (Dog Count ≥ 1)
+# ----------------------------
+# Table view (Dog Count ≥ 1) with date filter
 # ----------------------------
 with st.expander("📄 Show dogs detected (count ≥ 1)"):
-    df_filtered = df[df["Dog Count"] >= 1]
+    # Date picker (default = latest date in sheet)
+    min_date = df['Timestamp'].dt.date.min()
+    max_date = df['Timestamp'].dt.date.max()
+    default_date = max_date
+    selected_date = st.date_input("Select date to view", value=default_date, min_value=min_date, max_value=max_date)
+
+    # Filter dataframe for selected date and dog count ≥ 1
+    df_filtered = df[(df['Timestamp'].dt.date == selected_date) & (df['Dog Count'] >= 1)]
+
     if df_filtered.empty:
-        st.info("No records with Dog Count ≥ 1.")
+        st.info(f"No dog detections on {selected_date}")
     else:
-        st.dataframe(df_filtered, use_container_width=True)
+        st.dataframe(df_filtered[['Timestamp', 'Dog Count']], use_container_width=True)
+
 
 # ----------------------------
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
