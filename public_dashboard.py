@@ -12,76 +12,56 @@ st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
 
 # ----------------------------
-# Auto-refresh every 15 seconds (built-in)
+# Auto-refresh every 15 seconds
 # ----------------------------
 if "last_refresh" not in st.session_state:
     st.session_state["last_refresh"] = time.time()
 
 if time.time() - st.session_state["last_refresh"] >= 15:
     st.session_state["last_refresh"] = time.time()
-    st.rerun()
+    st.experimental_rerun()
 
 # ----------------------------
-# Session state for alert-on-change
+# Track previous dog count
 # ----------------------------
 if "prev_dog_count" not in st.session_state:
-    st.session_state["prev_dog_count"] = None
+    st.session_state["prev_dog_count"] = 0
 
 # ----------------------------
 # Google Sheets setup
 # ----------------------------
-# Scope and credentials
-scope = ["https://spreadsheets.google.com/feeds",
-         "https://www.googleapis.com/auth/drive"]
-
-creds = st.secrets["gcp_service_account"]  # See step 4 below
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = st.secrets["gcp_service_account"]
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds, scope)
-
 gc = gspread.authorize(credentials)
 
-# Open the sheet by name or URL
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit?gid=0#gid=0"
-sh = gc.open_by_url("https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit?gid=0")
-worksheet = sh.sheet1  # or by name: sh.worksheet("Sheet1")
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1nDsxO0BV3hBCtn4FhtpXyRnKCGli6qW3oXSeewJZpbE/edit"
+sh = gc.open_by_url(SHEET_URL)
+worksheet = sh.sheet1
 
-# Fetch all data
+# ----------------------------
+# Fetch data
+# ----------------------------
 data = worksheet.get_all_records()
 df = pd.DataFrame(data)
 
-# ----------------------------
-# Process data
-# ----------------------------
 if df.empty:
     st.warning("No dog detection data yet.")
     st.stop()
 
 df.columns = [c.strip() for c in df.columns]
-required_cols = ["Timestamp", "Dog Count"]
-for col in required_cols:
-    if col not in df.columns:
-        st.error(f"Column '{col}' missing in sheet")
-        st.stop()
-
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df = df.sort_values("Timestamp")
 
-# ----------------------------
-# Stats calculations
-# ----------------------------
-latest_row = df.iloc[-1]
-latest_count = int(latest_row["Dog Count"])
-latest_time = latest_row["Timestamp"]
+latest_count = int(df.iloc[-1]["Dog Count"])
 total_dogs = int(df["Dog Count"].sum())
 max_count = int(df["Dog Count"].max())
 
 # ----------------------------
-# Detect changes
+# Detect changes for alert
 # ----------------------------
-dog_count_changed = False
-if st.session_state["prev_dog_count"] is None:
-    st.session_state["prev_dog_count"] = latest_count
-elif latest_count != st.session_state["prev_dog_count"]:
-    dog_count_changed = True
+dog_count_changed = latest_count != st.session_state["prev_dog_count"]
+if dog_count_changed:
     st.session_state["prev_dog_count"] = latest_count
 
 # ----------------------------
@@ -92,7 +72,7 @@ col1.metric("🟢 Total Dogs Counted", total_dogs)
 col2.metric("🔵 Current Dog Count", latest_count)
 col3.metric("🔴 Max Dogs Detected", max_count)
 
-# Environment Status
+# Environment status
 if latest_count == 1:
     env_status, bg_color = "Caution", "#ffff66"
 elif latest_count == 3:
@@ -105,12 +85,16 @@ else:
 col4.markdown(f"""
 <div style="padding:15px;background-color:{bg_color};border-radius:10px;text-align:center;color:black;">
 🌿 Environment Status<br><b>{env_status}</b>
-</div>""", unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
+# Last updated = current time
+current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 col5.markdown(f"""
 <div style="padding:12px;background-color:#f2f2f2;border-radius:10px;text-align:center;font-size:14px;color:#333;">
-🕒 Last Updated<br><b>{latest_time.strftime('%Y-%m-%d %H:%M:%S')}</b>
-</div>""", unsafe_allow_html=True)
+🕒 Last Updated<br><b>{current_time}</b>
+</div>
+""", unsafe_allow_html=True)
 
 # ----------------------------
 # Alert
@@ -118,7 +102,7 @@ col5.markdown(f"""
 if dog_count_changed and latest_count >= 1:
     st.markdown(f"""
     <div style="padding:20px;background-color:#ff3333;color:white;border-radius:10px;font-size:20px;font-weight:bold;text-align:center;margin-bottom:20px;">
-    🚨 DOG COUNT CHANGED! – {latest_count} dog(s)<br>⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
+    🚨 {latest_count} dog(s) detected at {current_time}
     </div>
     """, unsafe_allow_html=True)
 elif latest_count >= 1:
@@ -146,6 +130,3 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
-
-
-
