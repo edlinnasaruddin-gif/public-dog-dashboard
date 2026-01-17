@@ -3,44 +3,49 @@ import pandas as pd
 from datetime import datetime
 import time
 
-# ----------------------------
+# ============================
 # Page setup
-# ----------------------------
+# ============================
 st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
 
-# ----------------------------
-# Auto refresh every 15 seconds
-# ----------------------------
+# ============================
+# Auto refresh every 15 seconds (SAFE)
+# ============================
 if "last_refresh" not in st.session_state:
-    st.session_state.last_refresh = time.time()
+    st.session_state["last_refresh"] = time.time()
 
-if time.time() - st.session_state.last_refresh >= 15:
-    st.session_state.last_refresh = time.time()
+if time.time() - st.session_state["last_refresh"] >= 15:
+    st.session_state["last_refresh"] = time.time()
     st.rerun()
 
+# ============================
+# Session state initialization (IMPORTANT)
+# ============================
+if "prev_dog_count" not in st.session_state:
+    st.session_state["prev_dog_count"] = None
 
-# ----------------------------
+# ============================
 # Location info
-# ----------------------------
+# ============================
 st.subheader("📍 Location: Taman Bunga Raya, Kajang")
 
-# ----------------------------
+# ============================
 # Public Google Sheet CSV URL
-# ----------------------------
+# ============================
 CSV_URL = (
     "https://docs.google.com/spreadsheets/d/e/"
     "2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/"
     "pub?output=csv"
 )
 
-# ----------------------------
+# ============================
 # Fetch data
-# ----------------------------
+# ============================
 try:
     df = pd.read_csv(CSV_URL)
 except Exception as e:
-    st.error(f"Failed to load data from public CSV: {e}")
+    st.error(f"Failed to load data: {e}")
     st.stop()
 
 if df.empty:
@@ -54,37 +59,38 @@ df.columns = [c.strip() for c in df.columns]
 required_cols = ["Timestamp", "Dog Count"]
 for col in required_cols:
     if col not in df.columns:
-        st.error(f"Column '{col}' not found in the CSV.")
+        st.error(f"Missing column: {col}")
         st.stop()
 
 # Convert timestamp
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df = df.sort_values("Timestamp")
 
-# ----------------------------
+# ============================
 # Latest stats
-# ----------------------------
+# ============================
 latest_row = df.iloc[-1]
 latest_count = int(latest_row["Dog Count"])
 latest_time = latest_row["Timestamp"]
 
-max_count = df["Dog Count"].max()
-total_dogs = df["Dog Count"].sum()
+total_dogs = int(df["Dog Count"].sum())
+max_count = int(df["Dog Count"].max())
 
-# ----------------------------
+# ============================
 # Detect dog count change
-# ----------------------------
+# ============================
 dog_count_changed = False
 
-if st.session_state.prev_dog_count is None:
-    st.session_state.prev_dog_count = latest_count
-elif latest_count != st.session_state.prev_dog_count:
-    dog_count_changed = True
-    st.session_state.prev_dog_count = latest_count
+if st.session_state["prev_dog_count"] is None:
+    st.session_state["prev_dog_count"] = latest_count
 
-# ----------------------------
+elif latest_count != st.session_state["prev_dog_count"]:
+    dog_count_changed = True
+    st.session_state["prev_dog_count"] = latest_count
+
+# ============================
 # Metrics
-# ----------------------------
+# ============================
 col1, col2, col3, col4 = st.columns(4)
 
 col1.metric("🟢 Total Dogs Counted", total_dogs)
@@ -100,41 +106,41 @@ elif latest_count == 3:
     bg_color = "#ff9999"
 elif latest_count > 3:
     env_status = "Danger"
-    bg_color = "#ff4d4d"
+    bg_color = "#ff3333"
 else:
     env_status = "Safe"
     bg_color = "#ccffcc"
 
 col4.markdown(f"""
-    <div style="
-        padding:15px;
-        background-color:{bg_color};
-        border-radius:10px;
-        text-align:center;
-        color:black;">
-        🌿 Environment Status<br>
-        <b>{env_status}</b>
-    </div>
+<div style="
+    padding:15px;
+    background-color:{bg_color};
+    border-radius:10px;
+    text-align:center;
+    color:black;">
+    🌿 Environment Status<br>
+    <b>{env_status}</b>
+</div>
 """, unsafe_allow_html=True)
 
-# ----------------------------
-# Alert section (ONLY on change)
-# ----------------------------
+# ============================
+# ALERT SECTION (ONLY ON CHANGE)
+# ============================
 if dog_count_changed and latest_count >= 1:
     st.markdown(f"""
-        <div style="
-            padding: 20px;
-            background-color: #ff3333;
-            color: white;
-            border-radius: 12px;
-            font-size: 22px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 20px;">
-            🚨 DOG COUNT CHANGED!<br>
-            Now detected: {latest_count} dog(s)<br>
-            ⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
-        </div>
+    <div style="
+        padding:20px;
+        background-color:#ff3333;
+        color:white;
+        border-radius:12px;
+        font-size:22px;
+        font-weight:bold;
+        text-align:center;
+        margin-bottom:20px;">
+        🚨 DOG COUNT CHANGED!<br>
+        Detected: {latest_count} dog(s)<br>
+        ⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
+    </div>
     """, unsafe_allow_html=True)
 
 elif latest_count >= 1:
@@ -143,16 +149,16 @@ elif latest_count >= 1:
 else:
     st.success("✅ No dogs detected")
 
-# ----------------------------
+# ============================
 # Line chart
-# ----------------------------
+# ============================
 st.subheader("📈 Dog Counts Over Time")
 chart_df = df[["Timestamp", "Dog Count"]].set_index("Timestamp")
 st.line_chart(chart_df)
 
-# ----------------------------
+# ============================
 # Table (Dog Count >= 1)
-# ----------------------------
+# ============================
 with st.expander("📄 Show dogs detected (count ≥ 1)"):
     df_filtered = df[df["Dog Count"] >= 1]
     if df_filtered.empty:
@@ -160,11 +166,10 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
     else:
         st.dataframe(df_filtered, use_container_width=True)
 
-# ----------------------------
+# ============================
 # Footer
-# ----------------------------
+# ============================
 st.markdown(
     "<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>",
     unsafe_allow_html=True
 )
-
