@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import time
-from streamlit_autorefresh import st_autorefresh
 
 # ----------------------------
 # Page setup
@@ -10,7 +9,9 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
 
-# Auto-refresh every 15 seconds (no extra package)
+# ----------------------------
+# Auto-refresh every 15 seconds (built-in)
+# ----------------------------
 if "last_refresh" not in st.session_state:
     st.session_state["last_refresh"] = time.time()
 
@@ -18,6 +19,11 @@ if time.time() - st.session_state["last_refresh"] >= 15:
     st.session_state["last_refresh"] = time.time()
     st.rerun()
 
+# ----------------------------
+# Session state for alert-on-change
+# ----------------------------
+if "prev_dog_count" not in st.session_state:
+    st.session_state["prev_dog_count"] = None
 
 # ----------------------------
 # Location info
@@ -27,17 +33,12 @@ st.subheader("📍 Location: Taman Bunga Raya, Kajang")
 # ----------------------------
 # Public Google Sheet CSV URL
 # ----------------------------
-CSV_URL = (
-    "https://docs.google.com/spreadsheets/d/e/"
-    "2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/"
-    "pub?output=csv"
-)
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pub?output=csv"
 
 # ----------------------------
 # Fetch data (with cache-busting)
 # ----------------------------
 try:
-    # add timestamp to URL to prevent caching
     df = pd.read_csv(f"{CSV_URL}&t={int(time.time())}")
 except Exception as e:
     st.error(f"Failed to load data from public CSV: {e}")
@@ -148,10 +149,8 @@ if dog_count_changed and latest_count >= 1:
         ⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
     </div>
     """, unsafe_allow_html=True)
-
 elif latest_count >= 1:
     st.info(f"🐕 {latest_count} dog(s) detected (no change)")
-
 else:
     st.success("✅ No dogs detected")
 
@@ -179,4 +178,3 @@ st.markdown(
     "<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>",
     unsafe_allow_html=True
 )
-
