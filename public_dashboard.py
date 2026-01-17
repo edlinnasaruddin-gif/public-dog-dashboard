@@ -4,6 +4,10 @@ from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_autorefresh import st_autorefresh
+import pytz
+
+tz = pytz.timezone("Asia/Kuala_Lumpur")
+current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 # ----------------------------
 # Auto-refresh every 15 seconds
@@ -78,9 +82,7 @@ col1.metric("🟢 Total Dogs Counted", total_dogs)
 col2.metric("🔵 Current Dog Count", latest_count)
 col3.metric("🔴 Max Dogs Detected", max_count)
 
-import pytz
-tz = pytz.timezone("Asia/Kuala_Lumpur")
-current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
 # Environment status
 if latest_count == 1:
     env_status, bg_color = "Caution", "#ffff66"
@@ -137,6 +139,7 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
 
