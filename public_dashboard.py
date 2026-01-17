@@ -12,14 +12,13 @@ st.title("🐕 Stray Dog Public Dashboard")
 # ----------------------------
 # Auto refresh every 15 seconds
 # ----------------------------
-time.sleep(15)
-st.experimental_rerun()
+if "last_refresh" not in st.session_state:
+    st.session_state.last_refresh = time.time()
 
-# ----------------------------
-# Session state (store previous dog count)
-# ----------------------------
-if "prev_dog_count" not in st.session_state:
-    st.session_state.prev_dog_count = None
+if time.time() - st.session_state.last_refresh >= 15:
+    st.session_state.last_refresh = time.time()
+    st.rerun()
+
 
 # ----------------------------
 # Location info
@@ -168,3 +167,4 @@ st.markdown(
     "<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>",
     unsafe_allow_html=True
 )
+
