@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import time
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ----------------------------
 # Page setup
@@ -26,40 +28,40 @@ if "prev_dog_count" not in st.session_state:
     st.session_state["prev_dog_count"] = None
 
 # ----------------------------
-# Location info
+# Google Sheets setup
 # ----------------------------
-st.subheader("📍 Location: Taman Bunga Raya, Kajang")
+# Scope and credentials
+scope = ["https://spreadsheets.google.com/feeds",
+         "https://www.googleapis.com/auth/drive"]
+
+creds = st.secrets["gcp_service_account"]  # See step 4 below
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds, scope)
+
+gc = gspread.authorize(credentials)
+
+# Open the sheet by name or URL
+SHEET_URL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE"
+sh = gc.open_by_url(SHEET_URL)
+worksheet = sh.sheet1  # or by name: sh.worksheet("Sheet1")
+
+# Fetch all data
+data = worksheet.get_all_records()
+df = pd.DataFrame(data)
 
 # ----------------------------
-# Public Google Sheet CSV URL
+# Process data
 # ----------------------------
-CSV_URL ="https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pub?output=csv"
-
-# ----------------------------
-# Fetch data (with cache-busting)
-# ----------------------------
-try:
-    # Add timestamp to URL to prevent Google caching old CSV
-    df = pd.read_csv(f"{CSV_URL}&t={int(time.time())}")
-except Exception as e:
-    st.error(f"Failed to load data from public CSV: {e}")
-    st.stop()
-
 if df.empty:
-    st.warning("No dog detection data available yet.")
+    st.warning("No dog detection data yet.")
     st.stop()
 
-# Clean column names
 df.columns = [c.strip() for c in df.columns]
-
-# Required columns check
 required_cols = ["Timestamp", "Dog Count"]
 for col in required_cols:
     if col not in df.columns:
-        st.error(f"Column '{col}' not found in the CSV.")
+        st.error(f"Column '{col}' missing in sheet")
         st.stop()
 
-# Convert Timestamp to datetime
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df = df.sort_values("Timestamp")
 
@@ -69,12 +71,11 @@ df = df.sort_values("Timestamp")
 latest_row = df.iloc[-1]
 latest_count = int(latest_row["Dog Count"])
 latest_time = latest_row["Timestamp"]
-
-max_count = int(df["Dog Count"].max())
 total_dogs = int(df["Dog Count"].sum())
+max_count = int(df["Dog Count"].max())
 
 # ----------------------------
-# Detect dog count change (for alert)
+# Detect changes
 # ----------------------------
 dog_count_changed = False
 if st.session_state["prev_dog_count"] is None:
@@ -86,68 +87,38 @@ elif latest_count != st.session_state["prev_dog_count"]:
 # ----------------------------
 # Metrics / Cards
 # ----------------------------
-col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1.2])
-
+col1, col2, col3, col4, col5 = st.columns([1,1,1,1,1.2])
 col1.metric("🟢 Total Dogs Counted", total_dogs)
 col2.metric("🔵 Current Dog Count", latest_count)
 col3.metric("🔴 Max Dogs Detected", max_count)
 
 # Environment Status
 if latest_count == 1:
-    env_status = "Caution"
-    bg_color = "#ffff66"
+    env_status, bg_color = "Caution", "#ffff66"
 elif latest_count == 3:
-    env_status = "Critical"
-    bg_color = "#ff9999"
+    env_status, bg_color = "Critical", "#ff9999"
 elif latest_count > 3:
-    env_status = "Danger"
-    bg_color = "#ff3333"
+    env_status, bg_color = "Danger", "#ff3333"
 else:
-    env_status = "Safe"
-    bg_color = "#ccffcc"
+    env_status, bg_color = "Safe", "#ccffcc"
 
 col4.markdown(f"""
-<div style="
-    padding:15px;
-    background-color:{bg_color};
-    border-radius:10px;
-    text-align:center;
-    color:black;">
-    🌿 Environment Status<br>
-    <b>{env_status}</b>
-</div>
-""", unsafe_allow_html=True)
+<div style="padding:15px;background-color:{bg_color};border-radius:10px;text-align:center;color:black;">
+🌿 Environment Status<br><b>{env_status}</b>
+</div>""", unsafe_allow_html=True)
 
-# Last Updated Card
 col5.markdown(f"""
-<div style="
-    padding:12px;
-    background-color:#f2f2f2;
-    border-radius:10px;
-    text-align:center;
-    font-size:14px;
-    color:#333;">
-    🕒 Last Updated<br>
-    <b>{latest_time.strftime('%Y-%m-%d %H:%M:%S')}</b>
-</div>
-""", unsafe_allow_html=True)
+<div style="padding:12px;background-color:#f2f2f2;border-radius:10px;text-align:center;font-size:14px;color:#333;">
+🕒 Last Updated<br><b>{latest_time.strftime('%Y-%m-%d %H:%M:%S')}</b>
+</div>""", unsafe_allow_html=True)
 
 # ----------------------------
-# Alert Detector Card
+# Alert
 # ----------------------------
 if dog_count_changed and latest_count >= 1:
     st.markdown(f"""
-    <div style="
-        padding: 20px;
-        background-color: #ff3333;
-        color: white;
-        border-radius: 10px;
-        font-size: 20px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;">
-        🚨 DOG COUNT CHANGED! – {latest_count} dog(s)<br>
-        ⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
+    <div style="padding:20px;background-color:#ff3333;color:white;border-radius:10px;font-size:20px;font-weight:bold;text-align:center;margin-bottom:20px;">
+    🚨 DOG COUNT CHANGED! – {latest_count} dog(s)<br>⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
     </div>
     """, unsafe_allow_html=True)
 elif latest_count >= 1:
@@ -159,11 +130,10 @@ else:
 # Line chart
 # ----------------------------
 st.subheader("📈 Dog Counts Over Time")
-chart_df = df[["Timestamp", "Dog Count"]].set_index("Timestamp")
-st.line_chart(chart_df)
+st.line_chart(df.set_index("Timestamp")["Dog Count"])
 
 # ----------------------------
-# Table view (Dog Count >= 1)
+# Table view
 # ----------------------------
 with st.expander("📄 Show dogs detected (count ≥ 1)"):
     df_filtered = df[df["Dog Count"] >= 1]
@@ -175,10 +145,4 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # ----------------------------
 # Footer
 # ----------------------------
-st.markdown(
-    "<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets CSV</p>",
-    unsafe_allow_html=True
-)
-
-
-
+st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
