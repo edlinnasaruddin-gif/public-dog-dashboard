@@ -1,12 +1,25 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import time
+from streamlit_autorefresh import st_autorefresh
 
 # ----------------------------
 # Page setup
 # ----------------------------
 st.set_page_config(page_title="Public Dog Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
+
+# ----------------------------
+# Auto-refresh every 15 seconds
+# ----------------------------
+st_autorefresh(interval=15 * 1000, key="dog_refresh")
+
+# ----------------------------
+# Session state for alert-on-change
+# ----------------------------
+if "prev_dog_count" not in st.session_state:
+    st.session_state["prev_dog_count"] = None
 
 # ----------------------------
 # Location info
@@ -16,13 +29,18 @@ st.subheader("📍 Location: Taman Bunga Raya, Kajang")
 # ----------------------------
 # Public Google Sheet CSV URL
 # ----------------------------
-CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/pub?output=csv"
+CSV_URL = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vTbucEZqgl9vWZJHSQFb1tpk2VVWRyPrxfxbRQ224TMzPbONeGVPEhTgQl9bGVstZOVc07T5nqDHIEV/"
+    "pub?output=csv"
+)
 
 # ----------------------------
-# Fetch data
+# Fetch data (with cache-busting)
 # ----------------------------
 try:
-    df = pd.read_csv(CSV_URL)
+    # add timestamp to URL to prevent caching
+    df = pd.read_csv(f"{CSV_URL}&t={int(time.time())}")
 except Exception as e:
     st.error(f"Failed to load data from public CSV: {e}")
     st.stop()
@@ -34,7 +52,7 @@ if df.empty:
 # Clean column names
 df.columns = [c.strip() for c in df.columns]
 
-# Check required columns
+# Required columns check
 required_cols = ["Timestamp", "Dog Count"]
 for col in required_cols:
     if col not in df.columns:
@@ -56,6 +74,16 @@ max_count = int(df["Dog Count"].max())
 total_dogs = int(df["Dog Count"].sum())
 
 # ----------------------------
+# Detect dog count change (for alert)
+# ----------------------------
+dog_count_changed = False
+if st.session_state["prev_dog_count"] is None:
+    st.session_state["prev_dog_count"] = latest_count
+elif latest_count != st.session_state["prev_dog_count"]:
+    dog_count_changed = True
+    st.session_state["prev_dog_count"] = latest_count
+
+# ----------------------------
 # Metrics / Cards
 # ----------------------------
 col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1.2])
@@ -64,7 +92,7 @@ col1.metric("🟢 Total Dogs Counted", total_dogs)
 col2.metric("🔵 Current Dog Count", latest_count)
 col3.metric("🔴 Max Dogs Detected", max_count)
 
-# Environment status
+# Environment Status
 if latest_count == 1:
     env_status = "Caution"
     bg_color = "#ffff66"
@@ -90,9 +118,7 @@ col4.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ----------------------------
-# Last Updated small card
-# ----------------------------
+# Last Updated Card
 col5.markdown(f"""
 <div style="
     padding:12px;
@@ -109,34 +135,27 @@ col5.markdown(f"""
 # ----------------------------
 # Alert Detector Card
 # ----------------------------
-if latest_count >= 1:
+if dog_count_changed and latest_count >= 1:
     st.markdown(f"""
     <div style="
         padding: 20px;
-        background-color: #ffcccc;
-        color: #b30000;
+        background-color: #ff3333;
+        color: white;
         border-radius: 10px;
         font-size: 20px;
         font-weight: bold;
         text-align: center;
         margin-bottom: 20px;">
-        ⚠️ Dog Detected – {latest_count} dog(s)<br>
+        🚨 DOG COUNT CHANGED! – {latest_count} dog(s)<br>
         ⏱ {latest_time.strftime('%Y-%m-%d %H:%M:%S')}
     </div>
     """, unsafe_allow_html=True)
+
+elif latest_count >= 1:
+    st.info(f"🐕 {latest_count} dog(s) detected (no change)")
+
 else:
-    st.markdown("""
-    <div style="
-        padding: 15px;
-        background-color: #ccffcc;
-        color: #006600;
-        border-radius: 10px;
-        font-size: 20px;
-        text-align: center;
-        margin-bottom: 20px;">
-        ✅ No dogs detected
-    </div>
-    """, unsafe_allow_html=True)
+    st.success("✅ No dogs detected")
 
 # ----------------------------
 # Line chart
@@ -146,7 +165,7 @@ chart_df = df[["Timestamp", "Dog Count"]].set_index("Timestamp")
 st.line_chart(chart_df)
 
 # ----------------------------
-# Table (Dog Count >= 1)
+# Table view (Dog Count >= 1)
 # ----------------------------
 with st.expander("📄 Show dogs detected (count ≥ 1)"):
     df_filtered = df[df["Dog Count"] >= 1]
