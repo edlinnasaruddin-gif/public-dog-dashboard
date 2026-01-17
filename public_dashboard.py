@@ -1,13 +1,9 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_autorefresh import st_autorefresh
-import pytz
-
-tz = pytz.timezone("Asia/Kuala_Lumpur")
-current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 # ----------------------------
 # Auto-refresh every 15 seconds
@@ -67,7 +63,6 @@ total_dogs = int(df["Dog Count"].sum())
 max_count = int(df["Dog Count"].max())
 
 # ----------------------------
-
 # Detect changes for alert
 # ----------------------------
 dog_count_changed = latest_count != st.session_state["prev_dog_count"]
@@ -81,7 +76,6 @@ col1, col2, col3, col4, col5 = st.columns([1,1,1,1,1.2])
 col1.metric("🟢 Total Dogs Counted", total_dogs)
 col2.metric("🔵 Current Dog Count", latest_count)
 col3.metric("🔴 Max Dogs Detected", max_count)
-
 
 # Environment status
 if latest_count == 1:
@@ -98,8 +92,13 @@ col4.markdown(f"""
 🌿 Environment Status<br><b>{env_status}</b>
 </div>""", unsafe_allow_html=True)
 
-# Last Updated = current time
-current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+# ----------------------------
+# Current time in Malaysia timezone (UTC+8)
+# ----------------------------
+malaysia_time = datetime.now(timezone.utc) + timedelta(hours=8)
+current_time = malaysia_time.strftime("%Y-%m-%d %H:%M:%S")
+
+# Last Updated card
 col5.markdown(f"""
 <div style="padding:12px;background-color:#f2f2f2;border-radius:10px;text-align:center;font-size:14px;color:#333;">
 🕒 Last Updated<br><b>{current_time}</b>
@@ -139,7 +138,3 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
-
-
-
-
