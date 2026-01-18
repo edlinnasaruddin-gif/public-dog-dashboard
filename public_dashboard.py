@@ -112,9 +112,7 @@ if dog_count_changed and latest_count >= 1:
     <div style="padding:20px;background-color:#ff3333;color:white;border-radius:10px;font-size:20px;font-weight:bold;text-align:center;margin-bottom:20px;">
     🚨 {latest_count} dog(s) detected at {current_time}
     </div>
-    """, unsafe_allow_html=True)
-else:
-    st.success("✅ No dogs detected")
+    """, unsafe_allow_html=True))
 
 # ----------------------------
 # Line chart: Dog counts over time
@@ -146,6 +144,7 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
 
