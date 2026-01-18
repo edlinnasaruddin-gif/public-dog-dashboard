@@ -15,6 +15,7 @@ st_autorefresh(interval=5_000, key="refresh")
 # ----------------------------
 st.set_page_config(page_title="🐕 Stray Dog Public Dashboard", layout="wide")
 st.title("🐕 Stray Dog Public Dashboard")
+st.subheader("📍 Location: Taman Bunga Raya, Kajang")
 
 # ----------------------------
 # Track previous dog count in session state
@@ -159,6 +160,7 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
 
