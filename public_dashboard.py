@@ -113,7 +113,6 @@ if dog_count_changed and latest_count >= 1:
     🚨 {latest_count} dog(s) detected at {current_time}
     </div>
     """, unsafe_allow_html=True)
-elif latest_count >= 1:
 else:
     st.success("✅ No dogs detected")
 
@@ -147,6 +146,7 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
 
