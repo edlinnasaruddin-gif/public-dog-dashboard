@@ -8,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 # ----------------------------
 # Auto-refresh every 15 seconds
 # ----------------------------
-st_autorefresh(interval=3_000, key="refresh")
+st_autorefresh(interval=5_000, key="refresh")
 
 # ----------------------------
 # Page setup
@@ -148,6 +148,7 @@ with st.expander("📄 Show dogs detected (count ≥ 1)"):
 # Footer
 # ----------------------------
 st.markdown("<hr><p style='text-align:center;color:gray;'>Powered by Streamlit & Google Sheets</p>", unsafe_allow_html=True)
+
 
 
 
